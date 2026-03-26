@@ -25,6 +25,8 @@ public interface BlockedSubRepository extends JpaRepository<BlockedSub, Long> {
 
     boolean existsBySystemIdAndBlockedExtensionIgnoreCase(Long systemId, String blockedExtension);
 
+    List<BlockedSub> findBySystemId(Long systemId);
+
     long countBySystemIdAndBlockedType(Long systemId, BlockedType type);
 
     // 전체 삭제 - bulk delete (SELECT 후 개별 delete 방지)

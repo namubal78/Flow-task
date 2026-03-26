@@ -12,4 +12,6 @@ import org.springframework.stereotype.Component;
 public class AppProperties {
     /** application.properties: app.system-id=1 */
     private Long systemId;
+    /** application-{profile}.properties: app.upload-dir=... */
+    private String uploadDir;
 }

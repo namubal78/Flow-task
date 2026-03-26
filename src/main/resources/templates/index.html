@@ -86,6 +86,12 @@
         .tag .tag-del { background: none; border: none; cursor: pointer; font-size: 12px; color: #888; padding: 0; line-height: 1; }
         .tag .tag-del:hover { color: #d9534f; }
         .empty-msg { font-size: 12px; color: #bbb; padding: 12px 0; }
+
+        /* ── 드롭존 */
+        .drop-zone { border: 2px dashed #c5b8ef; border-radius: 6px; padding: 24px 16px; text-align: center; background: #faf8ff; cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 8px; }
+        .drop-zone.drag-over { border-color: #5c3bc1; background: #f0ebff; }
+        .drop-zone-text { font-size: 13px; color: #9b8ec4; margin-bottom: 10px; }
+        .btn-file-attach { height: 32px; padding: 0 16px; background: #5c3bc1; color: #fff; border: none; border-radius: 3px; font-size: 13px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -167,6 +173,35 @@
 
                 </div>
             </div>
+            <!-- ── 차단 테스트 섹션 -->
+            <div class="section" style="align-items:flex-start;">
+                <div class="section-label">차단 테스트</div>
+                <div class="section-content">
+
+                    <input type="file" id="test-file-input" multiple style="display:none">
+
+                    <!-- 드롭존 -->
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="drop-zone-text">파일을 드래그하여 추가하거나</div>
+                        <button class="btn-file-attach" id="btn-file-attach">파일 첨부</button>
+                    </div>
+
+                    <!-- 파일 목록 영역 -->
+                    <div class="textarea-wrapper">
+                        <div class="textarea-toolbar">
+                            <div class="toolbar-left">
+                                <span class="count-text" id="file-count-display">0개 파일</span>
+                                <button class="btn-delete-all" id="btn-file-delete-all">전체삭제</button>
+                            </div>
+                        </div>
+                        <div class="tag-area" id="file-tag-area">
+                            <div class="tag-list" id="file-tag-list"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
         </div><!-- /.container -->
 
     </div><!-- /.layout -->
@@ -494,6 +529,139 @@ $(function () {
             renderCustom(res.data, res.customCount);
         });
     }
+
+    // ─────────────────────────────────────────
+    // 차단 테스트 - 초기 파일 목록 조회
+    // ─────────────────────────────────────────
+    fetchFileList();
+
+    function fetchFileList() {
+        $.get('/api/files', function (res) {
+            renderFileList(res);
+        });
+    }
+
+    function renderFileList(list) {
+        const $list = $('#file-tag-list');
+        $list.empty();
+        $('#file-count-display').text(list.length + '개 파일');
+        if (!list || list.length === 0) {
+            $list.append('<span class="empty-msg">업로드된 파일이 없습니다.</span>');
+            return;
+        }
+        list.forEach(item => $list.append(createFileTag(item)));
+    }
+
+    function createFileTag(item) {
+        return `<span class="tag" data-id="${item.id}">
+            ${item.originalName} (${formatFileSize(item.fileSize)})
+            <button class="file-del" data-id="${item.id}">✕</button>
+        </span>`;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + 'B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+    }
+
+    // ─────────────────────────────────────────
+    // 차단 테스트 - 파일 선택 (버튼 / 드롭존 클릭)
+    // ─────────────────────────────────────────
+    $('#btn-file-attach').on('click', function (e) {
+        e.stopPropagation();
+        $('#test-file-input').click();
+    });
+
+    $('#drop-zone').on('click', function () {
+        $('#test-file-input').click();
+    });
+
+    $('#test-file-input').on('change', function () {
+        const files = this.files;
+        if (!files || files.length === 0) return;
+        uploadTestFiles(files);
+        $(this).val('');
+    });
+
+    // ─────────────────────────────────────────
+    // 차단 테스트 - 드래그 앤 드롭
+    // ─────────────────────────────────────────
+    const $dropZone = $('#drop-zone');
+
+    $dropZone.on('dragover dragenter', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $dropZone.addClass('drag-over');
+    });
+
+    $dropZone.on('dragleave dragend', function (e) {
+        e.preventDefault();
+        $dropZone.removeClass('drag-over');
+    });
+
+    $dropZone.on('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $dropZone.removeClass('drag-over');
+        const files = e.originalEvent.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        uploadTestFiles(files);
+    });
+
+    // ─────────────────────────────────────────
+    // 차단 테스트 - 업로드 실행
+    // ─────────────────────────────────────────
+    function uploadTestFiles(files) {
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        $.ajax({
+            url: '/api/files/upload',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (res) {
+                alert(res.message);
+                fetchFileList();
+            },
+            error: function (xhr) {
+                alert(xhr.responseJSON?.message || '업로드에 실패했습니다.');
+            }
+        });
+    }
+
+    // ─────────────────────────────────────────
+    // 차단 테스트 - 개별 삭제
+    // ─────────────────────────────────────────
+    $(document).on('click', '.file-del', function () {
+        const id = $(this).data('id');
+        if (!confirm('파일을 삭제하시겠습니까?')) return;
+        $.ajax({
+            url: '/api/files/' + id,
+            type: 'DELETE',
+            success: function () { fetchFileList(); },
+            error: function () { alert('삭제에 실패했습니다.'); }
+        });
+    });
+
+    // ─────────────────────────────────────────
+    // 차단 테스트 - 전체 삭제
+    // ─────────────────────────────────────────
+    $('#btn-file-delete-all').on('click', function () {
+        const countText = $('#file-count-display').text();
+        const count = parseInt(countText);
+        if (count === 0) { alert('삭제할 파일이 없습니다.'); return; }
+        if (!confirm('업로드된 파일 ' + count + '개를 모두 삭제하시겠습니까?')) return;
+        $.ajax({
+            url: '/api/files',
+            type: 'DELETE',
+            success: function () { renderFileList([]); },
+            error: function () { alert('삭제에 실패했습니다.'); }
+        });
+    });
 
 });
 </script>
