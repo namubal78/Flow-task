@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>파일 확장자 차단 - 프로토타입</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+            background: #f0edf8;
+            color: #2d2340;
+        }
+
+        /* ── 상단 GNB 바 */
+        .gnb {
+            background: #5c3bc1;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            box-shadow: 0 2px 6px rgba(92,59,193,0.3);
+        }
+        .gnb-logo {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .gnb-logo span { color: #c9b8ff; font-weight: 400; font-size: 13px; margin-left: 10px; }
+
+        /* ── 페이지 래퍼 */
+        .page-wrap { max-width: 960px; margin: 32px auto; padding: 0 16px; }
+
+        /* ── 사이드바 + 콘텐츠 레이아웃 */
+        .layout { display: flex; gap: 20px; }
+
+        .sidebar {
+            width: 180px;
+            min-width: 180px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #e0d9f5;
+            padding: 16px 0;
+            height: fit-content;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9b8ec4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 16px 8px;
+        }
+        .sidebar-item {
+            display: block;
+            padding: 9px 16px;
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-item.active {
+            color: #5c3bc1;
+            font-weight: 700;
+            border-left-color: #5c3bc1;
+            background: #f5f1ff;
+        }
+
+        /* ── 메인 카드 */
+        .container {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #e0d9f5;
+            border-radius: 8px;
+            padding: 28px 32px;
+            box-shadow: 0 2px 8px rgba(92,59,193,0.06);
+        }
+
+        h2 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #2d2340;
+            margin-bottom: 6px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #5c3bc1;
+        }
+
+        /* 헤더 설명 문구 */
+        .header-desc { font-size: 13px; color: #7b6fa0; margin-bottom: 24px; padding-top: 8px; }
+
+        /* ── 섹션 공통 */
+        .section { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 28px; }
+        .section-label { width: 100px; min-width: 100px; font-size: 14px; font-weight: bold; padding-top: 6px; }
+        .section-content { flex: 1; }
+
+        /* ── 고정 확장자 */
+        .fixed-list { display: flex; gap: 16px; flex-wrap: wrap; }
+        .fixed-item { display: flex; align-items: center; gap: 4px; font-size: 14px; }
+        .fixed-item input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; }
+        .fixed-item label { cursor: pointer; }
+        .help-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #4A90D9; color: #fff; font-size: 10px; font-weight: bold;
+            cursor: pointer; text-decoration: none;
+        }
+
+        /* ── 커스텀 확장자 인풋 줄 (확장자 입력 + 추가 + 엑셀버튼) */
+        .custom-input-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .custom-input-row input[type=text] {
+            height: 34px; padding: 0 10px;
+            border: 1px solid #ccc; border-radius: 3px; font-size: 13px;
+            width: 200px;
+        }
+        .custom-input-row .spacer { flex: 1; }
+        .btn { height: 34px; padding: 0 14px; border: none; border-radius: 3px; font-size: 13px; cursor: pointer; }
+        .btn-add    { background: #555; color: #fff; }
+        .btn-gray   { background: #888; color: #fff; }
+        .btn-blue   { background: #4A90D9; color: #fff; }
+        .btn-dark   { background: #555; color: #fff; }
+        .btn-red    { background: #d9534f; color: #fff; }
+
+        /* 실시간 조회 피드백 */
+        .input-feedback { font-size: 12px; margin-top: 4px; min-height: 16px; }
+        .feedback-ok    { color: #3aab5e; }
+        .feedback-dup   { color: #d9534f; }
+        .feedback-fixed { color: #e6a817; }
+
+        /* ── textarea 래퍼 */
+        .textarea-wrapper { position: relative; border: 1px solid #ccc; border-radius: 3px; margin-top: 8px; }
+
+        /* textarea 상단 툴바: 3/200 + 전체삭제 + 검색인풋 + 검색버튼 */
+        .textarea-toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 10px; border-bottom: 1px solid #eee; background: #fafafa;
+            gap: 8px;
+        }
+        .toolbar-left  { display: flex; align-items: center; gap: 8px; }
+        .toolbar-right { display: flex; align-items: center; gap: 6px; }
+        .count-text { font-size: 12px; color: #888; white-space: nowrap; }
+        .btn-delete-all { height: 26px; padding: 0 10px; font-size: 12px; background: #666; color: #fff; border: none; border-radius: 3px; cursor: pointer; }
+        .search-input {
+            height: 26px; padding: 0 8px; font-size: 12px;
+            border: 1px solid #ccc; border-radius: 3px; width: 160px;
+        }
+        .btn-search { height: 26px; padding: 0 12px; font-size: 12px; background: #d9534f; color: #fff; border: none; border-radius: 3px; cursor: pointer; }
+
+        /* 정렬 버튼 */
+        .sort-bar { font-size: 12px; color: #555; margin-bottom: 8px; display: flex; gap: 4px; align-items: center; }
+        .sort-btn { background: none; border: none; cursor: pointer; font-size: 12px; color: #555; padding: 0; }
+        .sort-btn.active { color: #333; font-weight: bold; }
+        .sort-btn.underline { text-decoration: underline; }
+        .sort-divider { color: #ccc; }
+
+        /* 태그 목록 */
+        .tag-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 12px; min-height: 120px; }
+        .tag {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; background: #f0f0f0; border-radius: 14px;
+            font-size: 13px; height: fit-content;
+        }
+        .tag .tag-del { background: none; border: none; cursor: pointer; font-size: 12px; color: #888; padding: 0; line-height: 1; }
+        .tag .tag-del:hover { color: #d9534f; }
+    </style>
+</head>
+<body>
+
+<!-- GNB -->
+<div class="gnb">
+    <div class="gnb-logo">Flow <span>관리자 설정</span></div>
+</div>
+
+<!-- 페이지 래퍼 -->
+<div class="page-wrap">
+    <div class="layout">
+
+        <!-- 사이드바 -->
+        <nav class="sidebar">
+            <div class="sidebar-title">시스템 설정</div>
+            <div class="sidebar-item active">파일 확장자 차단</div>
+        </nav>
+
+        <!-- 메인 콘텐츠 -->
+<div class="container">
+    <h2>&#9673; 파일 확장자 차단</h2>
+    <p class="header-desc">파일확장자에 따라 특정 형식의 파일을 첨부하거나 전송하지 못하도록 제한</p>
+
+    <!-- ── 고정 확장자 섹션 -->
+    <div class="section">
+        <div class="section-label">고정 확장자</div>
+        <div class="section-content">
+            <div class="fixed-list">
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-bat">
+                    <label for="ext-bat">bat</label>
+                    <a class="help-icon" title="bat 확장자란?" target="_blank">?</a>
+                </div>
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-cmd">
+                    <label for="ext-cmd">cmd</label>
+                    <a class="help-icon" title="cmd 확장자란?" target="_blank">?</a>
+                </div>
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-com">
+                    <label for="ext-com">com</label>
+                    <a class="help-icon" title="com 확장자란?" target="_blank">?</a>
+                </div>
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-cpl">
+                    <label for="ext-cpl">cpl</label>
+                    <a class="help-icon" title="cpl 확장자란?" target="_blank">?</a>
+                </div>
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-exe" checked>
+                    <label for="ext-exe">exe</label>
+                    <a class="help-icon" title="exe 확장자란?" target="_blank">?</a>
+                </div>
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-scr">
+                    <label for="ext-scr">scr</label>
+                    <a class="help-icon" title="scr 확장자란?" target="_blank">?</a>
+                </div>
+                <div class="fixed-item">
+                    <input type="checkbox" id="ext-js" checked>
+                    <label for="ext-js">js</label>
+                    <a class="help-icon" title="js 확장자란?" target="_blank">?</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 커스텀 확장자 섹션 -->
+    <div class="section" style="align-items:flex-start;">
+        <div class="section-label">커스텀 확장자</div>
+        <div class="section-content">
+
+            <!-- 인풋 + 추가 | (spacer) | 엑셀 업로드 + 양식 다운로드 -->
+            <div class="custom-input-row">
+                <input type="text" id="custom-input" placeholder="확장자 입력" maxlength="20">
+                <button class="btn btn-add">+추가</button>
+                <div class="spacer"></div>
+                <button class="btn btn-blue">엑셀 업로드</button>
+                <button class="btn btn-gray">양식 다운로드</button>
+            </div>
+            <div class="input-feedback" id="input-feedback"></div>
+
+            <!-- textarea 영역 -->
+            <div class="textarea-wrapper">
+                <!-- 상단 툴바 -->
+                <div class="textarea-toolbar">
+                    <div class="toolbar-left">
+                        <span class="count-text">3/200</span>
+                        <button class="btn-delete-all">전체삭제</button>
+                    </div>
+                    <div class="toolbar-right">
+                        <input type="text" class="search-input" placeholder="추가 목록 검색">
+                        <button class="btn-search">검색</button>
+                    </div>
+                </div>
+
+                <!-- 정렬 바 -->
+                <div style="padding: 8px 10px 4px;">
+                    <div class="sort-bar">
+                        <button class="sort-btn active">알파벳순 ↓</button>
+                        <span class="sort-divider">|</span>
+                        <button class="sort-btn underline">최근등록순</button>
+                    </div>
+                </div>
+
+                <!-- 태그 목록 -->
+                <div class="tag-list">
+                    <span class="tag">
+                        sh <a class="help-icon" style="font-size:9px;" title="sh 확장자란?" target="_blank">?</a>
+                        <button class="tag-del">✕</button>
+                    </span>
+                    <span class="tag">
+                        ju <a class="help-icon" style="font-size:9px;" title="ju 확장자란?" target="_blank">?</a>
+                        <button class="tag-del">✕</button>
+                    </span>
+                    <span class="tag">
+                        ch <a class="help-icon" style="font-size:9px;" title="ch 확장자란?" target="_blank">?</a>
+                        <button class="tag-del">✕</button>
+                    </span>
+                </div>
+            </div>
+
+            <!-- 실시간 피드백 예시
+            <div class="input-feedback feedback-ok">추가할 수 있습니다</div>
+            <div class="input-feedback feedback-dup">차단 목록에 이미 있습니다.</div>
+            <div class="input-feedback feedback-fixed">고정 확장자에서 체크해주세요</div>
+            -->
+
+        </div>
+    </div><!-- /.container -->
+
+    </div><!-- /.layout -->
+</div><!-- /.page-wrap -->
+
+</body>
+</html>
