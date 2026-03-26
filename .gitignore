@@ -10,7 +10,6 @@ build/
 out/
 
 ### Spring Boot
-application-prod.properties
 
 ### OS
 .DS_Store

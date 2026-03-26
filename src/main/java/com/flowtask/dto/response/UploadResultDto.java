@@ -23,17 +23,15 @@ public class UploadResultDto {
 
     /** 정상 추가 (일부 중복 건너뜀 포함) */
     public static UploadResultDto success(int addedCount, List<String> duplicates, long totalCount) {
-        String msg;
-        if (addedCount > 0 && duplicates.isEmpty()) {
-            msg = "총 " + addedCount + "개 확장자가 커스텀 확장자 목록에 성공적으로 추가됐습니다.";
-        } else if (addedCount > 0) {
-            msg = "총 " + addedCount + "개 확장자가 추가됐습니다.\n"
-                    + "중복으로 건너뛴 항목: " + String.join(", ", duplicates);
-        } else if (!duplicates.isEmpty()) {
-            msg = "추가된 확장자가 없습니다. 모두 중복 항목입니다.\n"
-                    + "중복 항목: " + String.join(", ", duplicates);
+        String msg = "엑셀 업로드에 성공했습니다.\n";
+        if (addedCount > 0) {
+            msg += "총 " + addedCount + "개 확장자가 추가됐습니다.";
         } else {
-            msg = "추가할 유효한 확장자가 없습니다.";
+            msg += "추가된 확장자가 없습니다.";
+        }
+        if (!duplicates.isEmpty()) {
+            msg += "\n중복으로 건너뛴 항목 총 " + duplicates.size() + "개 : "
+                    + String.join(", ", duplicates);
         }
         return new UploadResultDto(true, addedCount, duplicates, totalCount, msg);
     }
@@ -45,7 +43,7 @@ public class UploadResultDto {
                 + "추가하면 최대 200개를 초과합니다. (현재: " + currentCount
                 + "개, 추가 시도: " + toAddCount + "개)";
         if (!duplicates.isEmpty()) {
-            msg += "\n중복으로 제외된 항목 총 " + duplicates.size() + "개\n"
+            msg += "\n중복으로 건너뛴 항목 총 " + duplicates.size() + "개 : "
                     + String.join(", ", duplicates);
         }
         return new UploadResultDto(false, 0, duplicates, currentCount, msg);

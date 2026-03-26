@@ -329,8 +329,9 @@ $(function () {
         if (e.key === 'Enter') $('#btn-add').click();
     });
 
-    // 포커스 아웃 시 입력값·피드백 초기화
-    $('#custom-input').on('blur', function () {
+    // 포커스 아웃 시 입력값·피드백 초기화 (추가 버튼 클릭 시 제외)
+    $('#custom-input').on('blur', function (e) {
+        if (e.relatedTarget && $(e.relatedTarget).is('#btn-add')) return;
         clearTimeout(debounceTimer);
         $(this).val('');
         setFeedback('', '');
@@ -392,8 +393,8 @@ $(function () {
         const $target = $('.tag[data-ext="' + val + '"]');
         if ($target.length) {
             const $area = $('#tag-area');
-            const targetTop = $target.position().top + $area.scrollTop() - 20;
-            $area.animate({ scrollTop: targetTop }, 300, function () {
+            const newScrollTop = $area.scrollTop() + $target.offset().top - $area.offset().top - 20;
+            $area.animate({ scrollTop: newScrollTop }, 300, function () {
                 $target.addClass('highlight');
                 setTimeout(() => $target.removeClass('highlight'), 1500);
             });
